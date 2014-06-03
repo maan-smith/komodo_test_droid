@@ -255,20 +255,24 @@ containing a value of this type.
     }
     public static final class id {
         public static final int button1=0x7f070004;
-        public static final int gauge_view1=0x7f070008;
-        public static final int gauge_view2=0x7f070009;
+        public static final int editTextDialogUserInput=0x7f070006;
+        public static final int gauge_view1=0x7f07000b;
+        public static final int gauge_view2=0x7f07000c;
+        public static final int layout_root=0x7f070005;
         public static final int list=0x7f070002;
         public static final int ll_progress_bar=0x7f070000;
-        public static final int name_wap=0x7f070006;
-        public static final int name_wifi=0x7f070005;
+        public static final int name_wap=0x7f070008;
+        public static final int name_wifi=0x7f070007;
         public static final int rl_holder=0x7f070001;
-        public static final int strenght=0x7f070007;
+        public static final int strenght=0x7f070009;
         public static final int textView1=0x7f070003;
+        public static final int tv_connectivity=0x7f07000a;
     }
     public static final class layout {
         public static final int activity_main=0x7f030000;
-        public static final int row=0x7f030001;
-        public static final int speedometer=0x7f030002;
+        public static final int prompts=0x7f030001;
+        public static final int row=0x7f030002;
+        public static final int speedometer=0x7f030003;
     }
     public static final class string {
         public static final int app_name=0x7f050000;

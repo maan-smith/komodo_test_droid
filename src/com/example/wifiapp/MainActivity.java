@@ -3,19 +3,25 @@ package com.example.wifiapp;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.TimerTask;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiConfiguration;
-import android.net.wifi.WifiConfiguration.KeyMgmt;
-import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -24,6 +30,7 @@ import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.BaseAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
@@ -61,6 +68,9 @@ public class MainActivity extends Activity implements OnItemClickListener,
 					.show();
 			mainWifiObj.setWifiEnabled(true);
 		}
+
+		list.setOnItemClickListener(this);
+
 	}
 
 	protected void onPause() {
@@ -81,8 +91,15 @@ public class MainActivity extends Activity implements OnItemClickListener,
 		public void onReceive(Context c, Intent intent) {
 			mVDataHolder.setVisibility(View.VISIBLE);
 			mVDataLoader.setVisibility(View.GONE);
+
+			if (wifis != null && wifis.size() > 0) {
+				wifis.clear();
+				// list.notify();
+			}
+			if (wifiScanList != null)
+				wifiScanList.clear();
+
 			wifiScanList = mainWifiObj.getScanResults();
-			// wifis = new WifiConfig[wifiScanList.size()];
 
 			wifisName = new String[wifiScanList.size()];
 
@@ -126,35 +143,177 @@ public class MainActivity extends Activity implements OnItemClickListener,
 			// list.setAdapter(new ArrayAdapter<String>(getApplicationContext(),
 			// android.R.layout.simple_list_item_1, wifis));
 
-			list.setAdapter(new AccountDetailsAdapter(getApplicationContext(),
-					wifis));
+			if (wifiAdapter == null) {
+				wifiAdapter = new AccountDetailsAdapter(
+						getApplicationContext(), wifis);
+				list.setAdapter(wifiAdapter);
+			} else
+				wifiAdapter.notifyDataSetChanged();
+
 		}
 	}
 
+	AccountDetailsAdapter wifiAdapter;
+
+	View view_currentSelected;
+
 	@Override
 	public void onItemClick(AdapterView<?> arg0, View arg1, int arg2, long arg3) {
-		connectToWifi(arg2);
+		view_currentSelected = arg1;
+		alertBoxPassword(arg2, arg1);
 	}
 
-	private void connectToWifi(int position) {
-		// HashMap<String, String> item = arraylist.get(position);
-
+	private void connectToWifi(int position, String password) {
 		// get SSID and BSSID from item
+		// WifiConfiguration wifiConfiguration = new WifiConfiguration();
+		// wifiConfiguration.SSID = wifiScanList.get(position).SSID;
+		// wifiConfiguration.allowedKeyManagement.set(KeyMgmt.NONE);
+		// wifiConfiguration.BSSID = wifiScanList.get(position).BSSID; // you
+		// // should
+		// // also put
+		// // the BSSID
+		// // in the
+		// // map
+		// wifiConfiguration.hiddenSSID = false;
+		// int inetId = mainWifiObj.addNetwork(wifiConfiguration);
+		// mainWifiObj.enableNetwork(inetId, true);
 
-		WifiConfiguration wifiConfiguration = new WifiConfiguration();
-		wifiConfiguration.SSID = wifiScanList.get(position).SSID;
-		wifiConfiguration.allowedKeyManagement.set(KeyMgmt.NONE);
-		wifiConfiguration.BSSID = wifiScanList.get(position).BSSID; // you
+		WifiManager wifi = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+		WifiConfiguration wc = new WifiConfiguration();
 
-		// should
-		// also put
-		// the BSSID
-		// in the
-		// map
-		wifiConfiguration.hiddenSSID = false;
+		// wc.SSID = "\""+wifiScanList.get(position).SSID+"\"";
+		// wc.preSharedKey = "\"12345678h\"";
 
-		int inetId = mainWifiObj.addNetwork(wifiConfiguration);
-		mainWifiObj.enableNetwork(inetId, true);
+		wc.SSID = "\"".concat(wifiScanList.get(position).SSID).concat("\"");
+		wc.preSharedKey = "\"".concat(password).concat("\"");
+
+		wc.hiddenSSID = true;
+		wc.BSSID = wifiScanList.get(position).BSSID; // you
+
+		wc.priority = 40;
+
+		wc.status = WifiConfiguration.Status.ENABLED;
+		wc.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.TKIP);
+		wc.allowedGroupCiphers.set(WifiConfiguration.GroupCipher.CCMP);
+		wc.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
+		wc.allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.TKIP);
+		wc.allowedPairwiseCiphers.set(WifiConfiguration.PairwiseCipher.CCMP);
+		wc.allowedProtocols.set(WifiConfiguration.Protocol.RSN);
+		wc.allowedProtocols.set(WifiConfiguration.Protocol.WPA);
+		wc.allowedAuthAlgorithms.set(WifiConfiguration.AuthAlgorithm.OPEN);
+
+		int res = mainWifiObj.addNetwork(wc);
+		Log.e("WifiPreference", "add Network returned " + res);
+		boolean es = wifi.saveConfiguration();
+		Log.e("WifiPreference", "saveConfiguration returned " + es);
+		boolean b = mainWifiObj.enableNetwork(res, true);
+		Log.e("WifiPreference", "enableNetwork returned " + b);
+		b = mainWifiObj.reconnect();
+		Log.e("WifiPreference", "reconnect Network returned " + b);
+		Toast.makeText(getBaseContext(), "connect " + b, Toast.LENGTH_SHORT)
+				.show();
+		handler.removeMessages(UPDATE_UI);
+		handler.sendEmptyMessageDelayed(UPDATE_UI, TRIGGER_DELAY_IN_MS);
+
+		// List<WifiConfiguration> netWorkList = wifi.getConfiguredNetworks();
+		// WifiConfiguration wifiCong = null;
+
+		// if (netWorkList != null) {
+		// for(WifiConfiguration item:netWorkList) {
+		// if (item.SSID.equalsIgnoreCase( wc.SSID )) {
+		// wifiCong = item;
+		// }
+		// }
+		// }
+
+//		new java.util.Timer().schedule(new TimerTask() {
+//
+//			@Override
+//			public void run() {
+//				isInternetAvailable();
+//			}
+//		}, 1000, 1000);
+
+	}
+	int i =0;
+	void isInternetAvailable() {
+		ConnectivityManager connManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+		NetworkInfo mWifi = connManager
+				.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
+
+		if (mWifi.isConnected()) {
+			
+			((TextView)view_currentSelected.findViewById(R.id.tv_connectivity)).setText("(Wifi connected)");
+		
+			wifiAdapter.notifyDataSetInvalidated();
+			
+			Toast.makeText(getApplicationContext(), "Wifi Connected", Toast.LENGTH_SHORT)
+					.show();
+			
+		}
+		Toast.makeText(getApplicationContext(), ""+ ++i, Toast.LENGTH_SHORT)
+		.show();
+
+		handler.removeMessages(UPDATE_UI);
+		handler.sendEmptyMessageDelayed(UPDATE_UI, TRIGGER_DELAY_IN_MS);
+	}
+
+	private final int UPDATE_UI = 1;
+	private final long TRIGGER_DELAY_IN_MS = 2000;
+	private Handler handler = new Handler() {
+		@Override
+		public void handleMessage(Message msg) {
+			if (msg.what == UPDATE_UI) {
+				isInternetAvailable();
+
+			}
+		}
+	};
+
+	void alertBoxPassword(final int position, final View view) {
+		// get prompts.xml view
+		LayoutInflater li = LayoutInflater.from(this.getBaseContext());
+		View promptsView = li.inflate(R.layout.prompts, null);
+
+		AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(this);
+
+		// set prompts.xml to alertdialog builder
+		alertDialogBuilder.setView(promptsView);
+
+		final EditText userInput = (EditText) promptsView
+				.findViewById(R.id.editTextDialogUserInput);
+
+		// set dialog message
+		alertDialogBuilder
+				.setCancelable(false)
+				.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+					public void onClick(DialogInterface dialog, int id) {
+						// get user input and set it to result
+						// edit text
+						// result.setText(userInput.getText());
+
+						String password = userInput.getText().toString();
+						if (password.length() > 0)
+							connectToWifi(position, password);
+						else
+							Toast.makeText(getBaseContext(), "not empty",
+									Toast.LENGTH_LONG).show();
+
+					}
+				})
+				.setNegativeButton("Cancel",
+						new DialogInterface.OnClickListener() {
+							public void onClick(DialogInterface dialog, int id) {
+								dialog.cancel();
+							}
+						});
+
+		// create alert dialog
+		AlertDialog alertDialog = alertDialogBuilder.create();
+
+		// show it
+		alertDialog.show();
+
 	}
 
 	@Override
@@ -240,6 +399,7 @@ public class MainActivity extends Activity implements OnItemClickListener,
 		private TextView mNameWAP;
 		private TextView mNameWifi;
 		private TextView mStrenght;
+		private TextView mConnectivity;
 
 		int position;
 
@@ -249,14 +409,15 @@ public class MainActivity extends Activity implements OnItemClickListener,
 			mNameWifi = (TextView) v.findViewById(R.id.name_wifi);
 			mNameWAP = (TextView) v.findViewById(R.id.name_wap);
 			mStrenght = (TextView) v.findViewById(R.id.strenght);
+			mConnectivity = (TextView) v.findViewById(R.id.tv_connectivity);
 		}
 
 		public void updateDataInView(WifiConfig data, int pos) {
 			// this.mAccountCategory = data;
 			mNameWAP.setText(data.nNameWAP);
 			mNameWifi.setText(data.nNameWifi);
-
 			mStrenght.setText("" + data.nStrenght);
+			mConnectivity.setText("(disconnected)");
 
 		}
 
@@ -267,6 +428,13 @@ public class MainActivity extends Activity implements OnItemClickListener,
 		public String nNameWifi;
 		public String nNameWAP;
 		public int nStrenght;
+
+	}
+	@Override
+	public void onBackPressed() {
+		// TODO Auto-generated method stub
+		super.onBackPressed();
+		handler.removeMessages(UPDATE_UI);
 	}
 
 }
