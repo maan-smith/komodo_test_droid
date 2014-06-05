@@ -35,7 +35,6 @@ import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
 public class MainActivity extends Activity implements OnItemClickListener,
 		OnClickListener {
@@ -63,9 +62,6 @@ public class MainActivity extends Activity implements OnItemClickListener,
 		if (mainWifiObj.isWifiEnabled() == false)
 
 		{
-			Toast.makeText(getApplicationContext(),
-					"wifi is disabled..making it enabled", Toast.LENGTH_LONG)
-					.show();
 			mainWifiObj.setWifiEnabled(true);
 		}
 
@@ -132,7 +128,7 @@ public class MainActivity extends Activity implements OnItemClickListener,
 				// }
 
 				obj.nStrenght = signalStrangth;
-
+				obj.nConnectiivity = "(disconnected)";
 				wifis.add(obj);// (new
 								// WifiConfig(wifiScanList.get(i)).toString());
 				name += (wifiScanList.get(i)).SSID + " , ";
@@ -163,6 +159,8 @@ public class MainActivity extends Activity implements OnItemClickListener,
 		alertBoxPassword(arg2, arg1);
 	}
 
+	int selectedIndex =0;
+	
 	private void connectToWifi(int position, String password) {
 		// get SSID and BSSID from item
 		// WifiConfiguration wifiConfiguration = new WifiConfiguration();
@@ -178,6 +176,8 @@ public class MainActivity extends Activity implements OnItemClickListener,
 		// int inetId = mainWifiObj.addNetwork(wifiConfiguration);
 		// mainWifiObj.enableNetwork(inetId, true);
 
+		selectedIndex = position;
+				
 		WifiManager wifi = (WifiManager) getSystemService(Context.WIFI_SERVICE);
 		WifiConfiguration wc = new WifiConfiguration();
 
@@ -210,8 +210,6 @@ public class MainActivity extends Activity implements OnItemClickListener,
 		Log.e("WifiPreference", "enableNetwork returned " + b);
 		b = mainWifiObj.reconnect();
 		Log.e("WifiPreference", "reconnect Network returned " + b);
-		Toast.makeText(getBaseContext(), "connect " + b, Toast.LENGTH_SHORT)
-				.show();
 		handler.removeMessages(UPDATE_UI);
 		handler.sendEmptyMessageDelayed(UPDATE_UI, TRIGGER_DELAY_IN_MS);
 
@@ -242,17 +240,9 @@ public class MainActivity extends Activity implements OnItemClickListener,
 				.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
 
 		if (mWifi.isConnected()) {
-			
-			((TextView)view_currentSelected.findViewById(R.id.tv_connectivity)).setText("(Wifi connected)");
-		
+			wifiAdapter.getData().get(selectedIndex).nConnectiivity = "(connected)";
 			wifiAdapter.notifyDataSetInvalidated();
-			
-			Toast.makeText(getApplicationContext(), "Wifi Connected", Toast.LENGTH_SHORT)
-					.show();
-			
 		}
-		Toast.makeText(getApplicationContext(), ""+ ++i, Toast.LENGTH_SHORT)
-		.show();
 
 		handler.removeMessages(UPDATE_UI);
 		handler.sendEmptyMessageDelayed(UPDATE_UI, TRIGGER_DELAY_IN_MS);
@@ -295,10 +285,6 @@ public class MainActivity extends Activity implements OnItemClickListener,
 						String password = userInput.getText().toString();
 						if (password.length() > 0)
 							connectToWifi(position, password);
-						else
-							Toast.makeText(getBaseContext(), "not empty",
-									Toast.LENGTH_LONG).show();
-
 					}
 				})
 				.setNegativeButton("Cancel",
@@ -356,6 +342,10 @@ public class MainActivity extends Activity implements OnItemClickListener,
 
 		public void setData(ArrayList<WifiConfig> mAllPostData) {
 			this.mAllData = mAllPostData;
+		}
+		
+		public ArrayList<WifiConfig>  getData() {
+			return this.mAllData ;
 		}
 
 		@Override
@@ -417,7 +407,7 @@ public class MainActivity extends Activity implements OnItemClickListener,
 			mNameWAP.setText(data.nNameWAP);
 			mNameWifi.setText(data.nNameWifi);
 			mStrenght.setText("" + data.nStrenght);
-			mConnectivity.setText("(disconnected)");
+			mConnectivity.setText(data.nConnectiivity);
 
 		}
 
@@ -428,6 +418,7 @@ public class MainActivity extends Activity implements OnItemClickListener,
 		public String nNameWifi;
 		public String nNameWAP;
 		public int nStrenght;
+		public String nConnectiivity;
 
 	}
 	@Override
